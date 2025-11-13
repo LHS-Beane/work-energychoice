@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Work & Energy Choice Board</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .task-card {
+            @apply bg-white p-6 rounded-xl shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer flex flex-col justify-between;
+        }
+        .task-card.selected {
+            @apply ring-4 ring-green-500 ring-offset-2;
+        }
+        .task-card h3 {
+            @apply text-xl font-semibold text-blue-700 mb-2;
+        }
+        .task-card p {
+            @apply text-sm text-slate-600;
+        }
+        .task-card .icon {
+            @apply text-3xl mb-3;
+        }
+        .modal-overlay {
+            @apply fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50;
+        }
+        .modal-content {
+            @apply bg-white rounded-xl shadow-2xl p-8 max-w-2xl w-full transform transition-all duration-300 scale-95 opacity-0;
+        }
+        .modal-overlay.active .modal-content {
+            @apply scale-100 opacity-100;
+        }
+        .completion-message {
+            @apply text-center p-4 rounded-lg text-lg font-semibold;
+        }
+        .completion-message.tic-tac-toe {
+            @apply bg-green-100 text-green-700;
+        }
+        .completion-message.four-tasks {
+            @apply bg-blue-100 text-blue-700;
+        }
+        .completion-message.not-yet {
+            @apply bg-slate-100 text-slate-600;
+        }
+        @media (max-width: 768px) {
+            .grid-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="bg-white shadow-md">
+        <div class="container mx-auto max-w-5xl p-6 text-center">
+            <h1 class="text-3xl md:text-4xl font-bold text-blue-700">Introduction to Work & Energy</h1>
+            <p class="text-xl text-slate-600 mt-1">Mr. Beane's Physics Choice Board</p>
+        </div>
+    </header>
+
+    <!-- Instructions and Progress -->
+    <div class="container mx-auto max-w-3xl p-4 md:p-8">
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <h2 class="text-2xl font-bold text-slate-800 mb-3">How to Play</h2>
+            <p class="text-slate-600">Your goal is to complete the board. You win by either:</p>
+            <ul class="list-disc list-inside mt-2 text-slate-600 space-y-1">
+                <li>Completing **three (3) tasks** in a Tic-Tac-Toe line (horizontal, vertical, or diagonal).</li>
+                <li>...or... Completing **any four (4) tasks** of your choice.</li>
+            </ul>
+            <div id="progress-bar" class="w-full bg-slate-200 rounded-full h-2.5 mt-4">
+                <div id="progress-fill" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+            </div>
+            <div id="completion-message" class="completion-message not-yet mt-4">
+                Select your first task to get started!
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="container mx-auto max-w-4xl p-4 md:p-8">
+        <div class="grid-container" id="task-grid">
+            <!-- Cards will be injected by JavaScript -->
+        </div>
+    </main>
+
+    <!-- Modal -->
+    <div id="modal-container" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 id="modal-title" class="text-2xl font-bold">Task Title</h2>
+                <button id="modal-close-btn" class="text-2xl text-slate-500 hover:text-slate-800">&times;</button>
+            </div>
+            <div id="modal-body" class="text-slate-700">
+                <!-- Modal details injected by JS -->
+            </div>
+            <div class="mt-6 flex flex-col sm:flex-row-reverse gap-3">
+                <button id="modal-select-btn" class="w-full sm:w-auto px-6 py-2 rounded-lg text-white font-semibold transition-colors bg-green-600 hover:bg-green-700">Mark as Complete</button>
+                <button id="modal-deselect-btn" class="w-full sm:w-auto px-6 py-2 rounded-lg text-white font-semibold transition-colors bg-red-600 hover:bg-red-700 hidden">Mark as Incomplete</button>
+                <button id="modal-cancel-btn" class="w-full sm:w-auto px-6 py-2 rounded-lg bg-slate-200 text-slate-800 hover:bg-slate-300 font-semibold transition-colors">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const tasks = [
+            {
+                id: 0,
+                title: 'Vocabulary Expert',
+                icon: 'fa-book',
+                details: `
+                    <p>Create a digital flashcard set (Quizlet, Blooket) for these 5 terms:</p>
+                    <ul class="list-disc list-inside mt-2 space-y-1">
+                        <li>Work (Physics Definition)</li>
+                        <li>Work (Everyday Definition)</li>
+                        <li>Energy</li>
+                        <li>Force</li>
+                        <li>Joule</li>
+                    </ul>
+                    <p class="mt-3 text-sm text-slate-600"><i>Share the link as your submission.</i></p>
+                `
+            },
+            {
+                id: 1,
+                title: 'Concept Mapper',
+                icon: 'fa-diagram-project',
+                details: `
+                    <p>Create a "sketchnote" or concept map. Your map must visually connect the following terms and show their relationship:</p>
+                    <ul class="list-disc list-inside mt-2 space-y-1">
+                        <li>Work</li>
+                        <li>Energy</li>
+                        <li>Force</li>
+                        <li>Distance</li>
+                    </ul>
+                    <p class="mt-3 text-sm text-slate-600"><i>Submit a picture of your map.</i></p>
+                `
+            },
+            {
+                id: 2,
+                title: "'Work or No Work?' Scout",
+                icon: 'fa-search',
+                details: `
+                    <p>Go on a 5-minute "work hunt." Find and list:</p>
+                    <ul class="list-disc list-inside mt-2 space-y-1">
+                        <li>3 examples of <strong>physics work</strong></li>
+                        <li>3 examples of <strong>effort that is NOT physics work</strong></li>
+                    </ul>
+                    <p class="mt-3">For each of the 6 items, write one sentence explaining *why* it does or doesn't count as work.</p>
+                `
+            },
+            {
+                id: 3,
+                title: 'Physics Dialogue',
+                icon: 'fa-comments',
+                details: `
+                    <p>Write a short script (like a text message conversation) between two friends.</p>
+                    <ul class="list-disc list-inside mt-2 space-y-1">
+                        <li><strong>Friend A:</strong> Insists that holding a 50 lb dumbbell perfectly still for 60 seconds is "hard work."</li>
+                        <li><strong>Friend B (You):</strong> Must explain *why* it's not <strong>physics work</strong>, referencing the <strong>two conditions</strong> for work.</li>
+                    </ul>
+                `
+            },
+            {
+                id: 4,
+                title: 'T-Chart Analysis (Start Here!)',
+                icon: 'fa-table-columns',
+                details: `
+                    <p class="font-semibold text-blue-700">This is a great place to start!</p>
+                    <p class="mt-2">Create a T-Chart labeled "Work is Done" and "No Work is Done." Sort these 5 scenarios and <strong>justify each one.</strong></p>
+                    <ol class="list-decimal list-inside mt-2 space-y-1">
+                        <li>Pushing a cart down the aisle.</li>
+                        <li>Pushing against a locked door.</li>
+                        <li>Lifting a backpack off the floor.</li>
+                        <li>Holding a heavy backpack.</li>
+                        <li>A bowling ball rolling.</li>
+                    </ol>
+                `
+            },
+            {
+                id: 5,
+                title: 'Calculate It!',
+                icon: 'fa-calculator',
+                details: `
+                    <p>Show your work (W = F &times; d) for these 3 problems. <strong>Don't forget units!</strong></p>
+                    <ol class="list-decimal list-inside mt-2 space-y-2">
+                        <li>A 20 N force pushes a box 5 m. How much work is done?</li>
+                        <li>You do 100 J of work to lift a box 2 m high. What force (weight) did you apply?</li>
+                        <li>A 1 N force moves a toy 0.5 m. How much work is done?</li>
+                    </ol>
+                `
+            },
+            {
+                id: 6,
+                title: 'Comic Strip Creator',
+                icon: 'fa-pen-ruler',
+                details: `
+                    <p>Design a 4-panel comic strip. Your comic must tell a simple story that clearly shows:</p>
+                    <ul class="list-disc list-inside mt-2 space-y-1">
+                        <li><strong>Panel 1-2:</strong> A character doing something that <i>is</i> <strong>physics work</strong>.</li>
+                        <li><strong>Panel 3-4:</strong> The same character doing something that <i>is NOT</i> <strong>physics work</strong> (but might feel like effort).</li>
+                    </ul>
+                    <p class="mt-3 text-sm text-slate-600"><i>Use simple captions or dialogue.</i></p>
+                `
+            },
+            {
+                id: 7,
+                title: 'Joule Justification',
+                icon: 'fa-scale-balanced',
+                details: `
+                    <p>The unit for work is the <strong>Joule (J)</strong>, which is just a nickname for a <strong>Newton-meter (N&middot;m)</strong>.</p>
+                    <p class="mt-3">In your own words (3-5 sentences), explain *why* this unit (Newtons &times; meters) is the perfect way to measure work.</p>
+                    <p class="mt-2 text-sm text-slate-600"><i>Hint: Think about what "Newton" and "meter" measure.</i></p>
+                `
+            },
+            {
+                id: 8,
+                title: 'The Waiter Challenge',
+                icon: 'fa-bell-concierge',
+                details: `
+                    <p class="font-semibold text-slate-800">Answer the classic physics problem:</p>
+                    <p class="mt-3">A waiter is carrying a heavy tray of food. He holds the tray steady with an <i>upward</i> force of 15 N. He walks 10 m <i>forward</i> across the room.</p>
+                    <p class="mt-3"><strong>Question:</strong> How much *physics work* did the waiter's <i>upward force</i> do on the tray?</p>
+                    <p class="mt-2 text-sm text-slate-600"><i>Explain your reasoning in detail.</i></p>
+                `
+            }
+        ];
+
+        // State
+        let selectedTasks = new Array(9).fill(false);
+        let currentModalTaskId = -1;
+
+        // DOM Elements
+        const taskGrid = document.getElementById('task-grid');
+        const modalContainer = document.getElementById('modal-container');
+        const modalTitle = document.getElementById('modal-title');
+        const modalBody = document.getElementById('modal-body');
+        const modalSelectBtn = document.getElementById('modal-select-btn');
+        const modalDeselectBtn = document.getElementById('modal-deselect-btn');
+        const modalCloseBtn = document.getElementById('modal-close-btn');
+        const modalCancelBtn = document.getElementById('modal-cancel-btn');
+        const progressFill = document.getElementById('progress-fill');
+        const completionMessage = document.getElementById('completion-message');
+
+        // Render Cards
+        function renderCards() {
+            taskGrid.innerHTML = '';
+            tasks.forEach(task => {
+                const card = document.createElement('div');
+                card.className = 'task-card';
+                card.dataset.taskId = task.id;
+                
+                card.innerHTML = `
+                    <div>
+                        <i class="fas ${task.icon} icon text-blue-600 opacity-70"></i>
+                        <h3>${task.title}</h3>
+                        <p>${task.details.split('\n')[1].replace(/<[^>]*>?/gm, '')}</p>
+                    </div>
+                    <button class="w-full mt-4 px-4 py-2 rounded-lg text-white font-semibold transition-colors bg-blue-600 hover:bg-blue-700 details-btn">
+                        View Details
+                    </button>
+                `;
+                
+                if (selectedTasks[task.id]) {
+                    card.classList.add('selected');
+                }
+                
+                card.addEventListener('click', () => openModal(task.id));
+                taskGrid.appendChild(card);
+            });
+        }
+
+        // Modal Functions
+        function openModal(taskId) {
+            currentModalTaskId = taskId;
+            const task = tasks.find(t => t.id === taskId);
+            modalTitle.textContent = task.title;
+            modalBody.innerHTML = task.details;
+
+            if (selectedTasks[taskId]) {
+                modalSelectBtn.classList.add('hidden');
+                modalDeselectBtn.classList.remove('hidden');
+            } else {
+                modalSelectBtn.classList.remove('hidden');
+                modalDeselectBtn.classList.add('hidden');
+            }
+
+            modalContainer.classList.remove('hidden');
+            setTimeout(() => modalContainer.classList.add('active'), 10);
+        }
+
+        function closeModal() {
+            modalContainer.classList.remove('active');
+            setTimeout(() => modalContainer.classList.add('hidden'), 300);
+        }
+
+        // Selection Logic
+        function selectTask() {
+            if (currentModalTaskId !== -1) {
+                selectedTasks[currentModalTaskId] = true;
+                document.querySelector(`[data-task-id="${currentModalTaskId}"]`).classList.add('selected');
+                updateProgress();
+                closeModal();
+            }
+        }
+
+        function deselectTask() {
+            if (currentModalTaskId !== -1) {
+                selectedTasks[currentModalTaskId] = false;
+                document.querySelector(`[data-task-id="${currentModalTaskId}"]`).classList.remove('selected');
+                updateProgress();
+                closeModal();
+            }
+        }
+
+        // Progress & Win Check
+        function updateProgress() {
+            const numSelected = selectedTasks.filter(Boolean).length;
+            const progressPercent = (numSelected / 9) * 100;
+            progressFill.style.width = `${progressPercent}%`;
+
+            const winState = checkWin();
+            completionMessage.classList.remove('not-yet', 'tic-tac-toe', 'four-tasks');
+
+            if (winState === 'tic-tac-toe') {
+                completionMessage.textContent = '🎉 Tic-Tac-Toe! You\'ve completed the board!';
+                completionMessage.classList.add('tic-tac-toe');
+            } else if (winState === 'four-tasks') {
+                completionMessage.textContent = '🎉 That\'s 4 tasks! You\'ve completed the board!';
+                completionMessage.classList.add('four-tasks');
+            } else {
+                let msg = '';
+                switch (numSelected) {
+                    case 0: msg = 'Select your first task to get started!'; break;
+                    case 1: msg = 'Great start! Keep going!'; break;
+                    case 2: msg = 'Two down! What\'s next?'; break;
+                    case 3: msg = 'Three tasks complete! Check for a Tic-Tac-Toe...'; break;
+                    default: msg = `${numSelected} tasks selected.`;
+                }
+                completionMessage.textContent = msg;
+                completionMessage.classList.add('not-yet');
+            }
+        }
+
+        function checkWin() {
+            const numSelected = selectedTasks.filter(Boolean).length;
+            if (numSelected >= 4) return 'four-tasks';
+
+            const winPatterns = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+                [0, 3, 6], [1, 4, 7], [2, 5, 8], // Cols
+                [0, 4, 8], [2, 4, 6]  // Diagonals
+            ];
+
+            for (const pattern of winPatterns) {
+                if (pattern.every(index => selectedTasks[index])) {
+                    return 'tic-tac-toe';
+                }
+            }
+            return null;
+        }
+
+        // Initial Setup
+        document.addEventListener('DOMContentLoaded', () => {
+            renderCards();
+            updateProgress();
+        });
+
+        modalCloseBtn.addEventListener('click', closeModal);
+        modalCancelBtn.addEventListener('click', closeModal);
+        modalSelectBtn.addEventListener('click', selectTask);
+        modalDeselectBtn.addEventListener('click', deselectTask);
+
+        modalContainer.addEventListener('click', (e) => {
+            if (e.target === modalContainer) {
+                closeModal();
+            }
+        });
+
+    </script>
+</body>
+</html>
