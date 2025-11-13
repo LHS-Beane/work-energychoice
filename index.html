@@ -22,7 +22,7 @@
             margin: 0 auto;
         }
         .task-card {
-            @apply bg-white p-6 rounded-xl shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer flex flex-col justify-between;
+            @apply bg-white p-6 rounded-xl shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer flex flex-col justify-between h-full;
         }
         .task-card.selected {
             @apply ring-4 ring-green-500 ring-offset-2;
@@ -34,7 +34,7 @@
             @apply text-sm text-slate-600;
         }
         .task-card .icon {
-            @apply text-3xl mb-3;
+            @apply text-4xl mb-4;
         }
         .modal-overlay {
             @apply fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50;
@@ -265,13 +265,12 @@
                 card.dataset.taskId = task.id;
                 
                 card.innerHTML = `
-                    <div>
+                    <div class="text-center">
                         <i class="fas ${task.icon} icon text-blue-600 opacity-70"></i>
                         <h3>${task.title}</h3>
-                        <p>${task.details.split('\n')[1].replace(/<[^>]*>?/gm, '')}</p>
                     </div>
                     <button class="w-full mt-4 px-4 py-2 rounded-lg text-white font-semibold transition-colors bg-blue-600 hover:bg-blue-700 details-btn">
-                        View Details
+                        View Task Details
                     </button>
                 `;
                 
